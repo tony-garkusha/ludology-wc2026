@@ -20,7 +20,7 @@ let playhead = 0;
 let playing = true;
 let previousTime = performance.now();
 let secondsPerGame = Number(speedInput.value);
-let viewMode = "graph";
+let viewMode = "lanes";
 let rankOrderCache = new Map();
 
 function loadSavedData() {
