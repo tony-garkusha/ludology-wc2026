@@ -23,63 +23,17 @@ const resetButton = document.querySelector("#reset");
 const timeline = document.querySelector("#timeline");
 const speedInput = document.querySelector("#speed");
 const speedLabel = document.querySelector("#speed-label");
-const fileInput = document.querySelector("#excel-file");
 const status = document.querySelector("#status");
 const leaderboard = document.querySelector("#leaderboard");
 const viewButtons = document.querySelectorAll(".view-button");
 
-let data = loadSavedData() || window.DEFAULT_TOURNAMENT_DATA;
+const data = window.DEFAULT_TOURNAMENT_DATA;
 let playhead = 0;
 let playing = true;
 let previousTime = performance.now();
 let secondsPerGame = Number(speedInput.value);
 let viewMode = "lanes";
 let rankOrderCache = new Map();
-
-function loadSavedData() {
-  try {
-    return JSON.parse(localStorage.getItem("ludology-race-data"));
-  } catch {
-    return null;
-  }
-}
-
-function validateData(candidate) {
-  if (!candidate || !Array.isArray(candidate.games) || candidate.games.length === 0) {
-    throw new Error("Не найдены названия матчей в строке 2, начиная с колонки D.");
-  }
-  if (!Array.isArray(candidate.players) || candidate.players.length !== 8) {
-    throw new Error("В накопительной таблице должно быть ровно 8 игроков.");
-  }
-  if (candidate.players.some((player) => player.scores.length !== candidate.games.length)) {
-    throw new Error("Количество накопительных результатов не совпадает с количеством матчей.");
-  }
-  return candidate;
-}
-
-function parseWorkbook(workbook) {
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null, raw: true });
-  const gameRow = rows[1] || [];
-  const games = [];
-  for (let col = 3; col < gameRow.length; col += 1) {
-    if (gameRow[col] === null || gameRow[col] === "") break;
-    games.push(String(gameRow[col]));
-  }
-
-  const cumulativeByName = new Map();
-  for (let row = 12; row < 20; row += 1) {
-    const name = rows[row]?.[1];
-    if (!name) continue;
-    const scores = games.map((_, index) => Number(rows[row]?.[index + 3] ?? 0));
-    cumulativeByName.set(String(name), scores);
-  }
-  const players = rows.slice(2, 10)
-    .map((row) => String(row?.[1] ?? ""))
-    .filter(Boolean)
-    .map((name) => ({ name, scores: cumulativeByName.get(name) || [] }));
-  return validateData({ title: "Ludology WC 2026", games, players });
-}
 
 function resetRace(autoplay = false) {
   playhead = 0;
@@ -497,25 +451,6 @@ viewButtons.forEach((button) => {
     viewMode = button.dataset.view;
     viewButtons.forEach((candidate) => candidate.classList.toggle("active", candidate === button));
   });
-});
-
-fileInput.addEventListener("change", async () => {
-  const file = fileInput.files?.[0];
-  if (!file) return;
-  try {
-    updateStatus("Читаю Excel...");
-    if (!window.XLSX) throw new Error("Не удалось загрузить модуль чтения Excel. Проверьте подключение к интернету.");
-    const bytes = await file.arrayBuffer();
-    data = parseWorkbook(XLSX.read(bytes, { type: "array" }));
-    rankOrderCache = new Map();
-    localStorage.setItem("ludology-race-data", JSON.stringify(data));
-    resetRace(true);
-    updateStatus(`Загружено: ${data.games.length} матчей, ${data.players.length} игроков`);
-  } catch (error) {
-    updateStatus(error.message);
-  } finally {
-    fileInput.value = "";
-  }
 });
 
 window.addEventListener("resize", resizeCanvas);

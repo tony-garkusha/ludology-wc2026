@@ -60,30 +60,6 @@ h1 {
   font-size: 14px;
 }
 
-.file-button {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  min-height: 46px;
-  padding: 0 18px;
-  color: #07130e;
-  background: var(--accent);
-  border-radius: 12px;
-  font-weight: 800;
-  cursor: pointer;
-  transition: transform 150ms ease, filter 150ms ease;
-}
-
-.file-button:hover {
-  filter: brightness(1.08);
-  transform: translateY(-1px);
-}
-
-.file-button input {
-  display: none;
-}
-
 .stage {
   overflow: hidden;
   background: var(--panel);
