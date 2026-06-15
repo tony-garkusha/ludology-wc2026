@@ -6,7 +6,10 @@ const palette = [
 const countryFlags = {
   MEX: "🇲🇽", RSA: "🇿🇦", KOR: "🇰🇷", CZE: "🇨🇿",
   CAN: "🇨🇦", BOS: "🇧🇦", USA: "🇺🇸", PAR: "🇵🇾",
-  HAI: "🇭🇹", SCO: "🇬🇧", AUS: "🇦🇺", TUR: "🇹🇷",
+  HAI: "🇭🇹",
+  SCO: "\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}",
+  ENG: "\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}",
+  AUS: "🇦🇺", TUR: "🇹🇷",
   BRA: "🇧🇷", MOR: "🇲🇦", CIV: "🇨🇮", ECU: "🇪🇨",
   GER: "🇩🇪", CUR: "🇨🇼", NED: "🇳🇱", JAP: "🇯🇵",
   SWE: "🇸🇪", TUN: "🇹🇳"
@@ -252,7 +255,7 @@ function drawGraph() {
     ctx.translate(x, layout.top + layout.chartHeight + 14);
     ctx.rotate(-0.55);
     ctx.fillStyle = stage <= playhead ? "rgba(235,241,252,.86)" : "rgba(235,241,252,.35)";
-    ctx.font = "750 14px ui-sans-serif, system-ui";
+    ctx.font = '750 14px "Apple Color Emoji", "Segoe UI Emoji", ui-sans-serif, system-ui';
     ctx.textAlign = "right";
     ctx.fillText(formatGame(game), 0, 0);
     ctx.restore();
@@ -410,7 +413,7 @@ function drawLaneRace() {
   ctx.strokeStyle = "rgba(255,255,255,.12)";
   ctx.strokeRect(left, top, trackWidth, trackHeight);
   ctx.fillStyle = "rgba(235,241,252,.5)";
-  ctx.font = "750 11px ui-sans-serif, system-ui";
+  ctx.font = '750 11px "Apple Color Emoji", "Segoe UI Emoji", ui-sans-serif, system-ui';
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   ctx.fillText(currentStage === 0 ? "Старт: 0 очков" : `Этап: ${formatGame(data.games[currentStage - 1])}`, left, top - 20);
