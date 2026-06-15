@@ -3,6 +3,15 @@ const palette = [
   "#c489ff", "#f5e663", "#51d6e8", "#ff835d"
 ];
 
+const countryFlags = {
+  MEX: "🇲🇽", RSA: "🇿🇦", KOR: "🇰🇷", CZE: "🇨🇿",
+  CAN: "🇨🇦", BOS: "🇧🇦", USA: "🇺🇸", PAR: "🇵🇾",
+  HAI: "🇭🇹", SCO: "🇬🇧", AUS: "🇦🇺", TUR: "🇹🇷",
+  BRA: "🇧🇷", MOR: "🇲🇦", CIV: "🇨🇮", ECU: "🇪🇨",
+  GER: "🇩🇪", CUR: "🇨🇼", NED: "🇳🇱", JAP: "🇯🇵",
+  SWE: "🇸🇪", TUN: "🇹🇳"
+};
+
 const canvas = document.querySelector("#race");
 const ctx = canvas.getContext("2d");
 const playButton = document.querySelector("#play");
@@ -92,6 +101,12 @@ function scoreAt(player, position) {
   const leftScore = leftStage === 0 ? 0 : player.scores[leftStage - 1];
   const rightScore = rightStage === 0 ? 0 : player.scores[rightStage - 1];
   return leftScore + (rightScore - leftScore) * (position - leftStage);
+}
+
+function formatGame(game) {
+  const codes = String(game).toUpperCase().split("-");
+  if (codes.length !== 2) return game;
+  return codes.map((code) => countryFlags[code] || code).join(" – ");
 }
 
 function getLayout(width, height) {
@@ -237,9 +252,9 @@ function drawGraph() {
     ctx.translate(x, layout.top + layout.chartHeight + 14);
     ctx.rotate(-0.55);
     ctx.fillStyle = stage <= playhead ? "rgba(235,241,252,.86)" : "rgba(235,241,252,.35)";
-    ctx.font = "750 10px ui-sans-serif, system-ui";
+    ctx.font = "750 14px ui-sans-serif, system-ui";
     ctx.textAlign = "right";
-    ctx.fillText(game, 0, 0);
+    ctx.fillText(formatGame(game), 0, 0);
     ctx.restore();
   });
 
@@ -398,7 +413,7 @@ function drawLaneRace() {
   ctx.font = "750 11px ui-sans-serif, system-ui";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillText(currentStage === 0 ? "Старт: 0 очков" : `Этап: ${data.games[currentStage - 1]}`, left, top - 20);
+  ctx.fillText(currentStage === 0 ? "Старт: 0 очков" : `Этап: ${formatGame(data.games[currentStage - 1])}`, left, top - 20);
   renderLeaderboard(getStandings());
 }
 
@@ -433,7 +448,7 @@ function updateStatus(message) {
   const stage = Math.min(Math.round(playhead), data.games.length);
   status.textContent = stage === 0
     ? "Старт: у всех 0 очков"
-    : `Матч ${stage} из ${data.games.length}: ${data.games[stage - 1]}`;
+    : `Матч ${stage} из ${data.games.length}: ${formatGame(data.games[stage - 1])}`;
 }
 
 function animate(time) {
