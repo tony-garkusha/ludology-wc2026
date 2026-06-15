@@ -28,6 +28,9 @@ const leaderboard = document.querySelector("#leaderboard");
 const viewButtons = document.querySelectorAll(".view-button");
 
 const data = window.DEFAULT_TOURNAMENT_DATA;
+if (!data?.games?.length || !data?.players?.length) {
+  throw new Error("Встроенные данные турнира не загрузились. Обновите страницу.");
+}
 let playhead = 0;
 let playing = true;
 let previousTime = performance.now();
