@@ -6,6 +6,7 @@ const palette = [
 const countryFlags = {
   MEX: "🇲🇽", RSA: "🇿🇦", KOR: "🇰🇷", CZE: "🇨🇿",
   CAN: "🇨🇦", BOS: "🇧🇦", USA: "🇺🇸", PAR: "🇵🇾",
+  QAT: "🇶🇦", SUI: "🇨🇭",
   HAI: "🇭🇹",
   SCO: "\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}",
   ENG: "\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}",
