@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ludology WC 2026 — Гонка прогнозистов</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Гонка прогнозистов</p>
+        <h1>Ludology WC 2026</h1>
+        <p class="subtitle">Машинки движутся по накопленным очкам после каждого матча. Загрузите обновлённую Excel, чтобы продолжить турнир.</p>
+      </div>
+      <label class="file-button">
+        Загрузить Excel
+        <input id="excel-file" type="file" accept=".xlsx,.xls">
+      </label>
+    </header>
+
+    <section class="stage">
+      <div class="view-switcher" role="group" aria-label="Вид анимации">
+        <button class="view-button active" data-view="graph" type="button">График</button>
+        <button class="view-button" data-view="lanes" type="button">Параллельная гонка</button>
+      </div>
+      <div class="canvas-wrap">
+        <canvas id="race" aria-label="Анимация гонки прогнозистов"></canvas>
+        <div class="status" id="status"></div>
+      </div>
+      <div class="controls">
+        <button id="play" type="button">Пауза</button>
+        <button id="reset" type="button">Сначала</button>
+        <input id="timeline" type="range" min="0" max="10" step="0.001" value="0" aria-label="Ход турнира">
+        <label class="speed">
+          Скорость
+          <input id="speed" type="range" min="0.4" max="4" step="0.1" value="1.5">
+          <span id="speed-label">1.5 сек/матч</span>
+        </label>
+      </div>
+    </section>
+
+    <section class="leaderboard" id="leaderboard" aria-label="Текущая таблица"></section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="tournament-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
