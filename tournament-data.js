@@ -12,16 +12,20 @@ window.DEFAULT_TOURNAMENT_DATA = {
     "GER-CUR",
     "NED-JAP",
     "CIV-ECU",
-    "SWE-TUN"
+    "SWE-TUN",
+    "ESP-CPV",
+    "BEL-EGY",
+    "KSA-URU",
+    "IRI-NZE"
   ],
   players: [
-    { name: "Artur", scores: [5, 5, 10, 13, 13, 13, 16, 16, 19, 19, 19, 22] },
-    { name: "Artem PM", scores: [5, 5, 10, 13, 13, 13, 16, 16, 19, 19, 19, 22] },
-    { name: "Volodymyr", scores: [3, 3, 3, 6, 6, 9, 12, 12, 15, 18, 21, 24] },
-    { name: "Vladyslav", scores: [5, 5, 5, 8, 8, 13, 16, 16, 19, 19, 19, 22] },
-    { name: "Oleksandr", scores: [3, 3, 8, 11, 11, 11, 14, 14, 17, 22, 22, 25] },
-    { name: "Ostap", scores: [5, 5, 5, 8, 8, 8, 11, 11, 14, 14, 14, 17] },
-    { name: "Artem MUMU", scores: [0, 3, 3, 6, 6, 6, 9, 9, 12, 12, 12, 15] },
-    { name: "Anton", scores: [5, 5, 8, 11, 11, 11, 14, 14, 17, 17, 17, 17] }
+    { name: "Artur", scores: [5, 5, 10, 13, 13, 13, 16, 16, 19, 19, 19, 22, 22, 22, 22, 25] },
+    { name: "Artem PM", scores: [5, 5, 10, 13, 13, 13, 16, 16, 19, 19, 19, 22, 22, 22, 22, 22] },
+    { name: "Volodymyr", scores: [3, 3, 3, 6, 6, 9, 12, 12, 15, 18, 21, 24, 24, 29, 29, 29] },
+    { name: "Vladyslav", scores: [5, 5, 5, 8, 8, 13, 16, 16, 19, 19, 19, 22, 22, 22, 22, 22] },
+    { name: "Oleksandr", scores: [3, 3, 8, 11, 11, 11, 14, 14, 17, 22, 22, 25, 25, 25, 25, 25] },
+    { name: "Ostap", scores: [5, 5, 5, 8, 8, 8, 11, 11, 14, 14, 14, 17, 17, 17, 17, 17] },
+    { name: "Artem MUMU", scores: [0, 3, 3, 6, 6, 6, 9, 9, 12, 12, 12, 15, 15, 15, 15, 15] },
+    { name: "Anton", scores: [5, 5, 8, 11, 11, 11, 14, 14, 17, 17, 17, 17, 17, 22, 22, 25] }
   ]
 };
