@@ -41,6 +41,8 @@ let previousTime = performance.now();
 let secondsPerGame = Number(speedInput.value);
 let viewMode = "lanes";
 let rankOrderCache = new Map();
+let highlightedPlayerIndex = null;
+let graphLabelHitboxes = [];
 
 function resetRace(autoplay = false) {
   playhead = 0;
@@ -174,6 +176,35 @@ function lanePositionAt(playerIndex, position) {
   return leftRank + (rightRank - leftRank) * eased;
 }
 
+function traceGraphLine(player, xFor, yFor, currentX) {
+  const lastWhole = Math.min(Math.floor(playhead), data.games.length);
+  ctx.beginPath();
+  ctx.moveTo(xFor(0), yFor(0));
+  for (let stage = 1; stage <= lastWhole; stage += 1) {
+    ctx.lineTo(xFor(stage), yFor(player.scores[stage - 1]));
+  }
+  if (playhead > lastWhole && lastWhole < data.games.length) {
+    ctx.lineTo(currentX, yFor(scoreAt(player, playhead)));
+  }
+}
+
+function drawGraphLine(playerIndex, xFor, yFor, currentX, emphasis = false) {
+  const player = data.players[playerIndex];
+  const color = palette[playerIndex % palette.length];
+  ctx.save();
+  ctx.strokeStyle = emphasis ? color : `${color}${highlightedPlayerIndex === null ? "" : "55"}`;
+  ctx.lineWidth = emphasis ? 5 : 2.5;
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  if (emphasis) {
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 16;
+  }
+  traceGraphLine(player, xFor, yFor, currentX);
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawGraph() {
   const width = canvas.clientWidth;
   const height = canvas.clientHeight;
@@ -234,22 +265,14 @@ function drawGraph() {
   const standings = getStandings();
 
   data.players.forEach((player, playerIndex) => {
-    const color = palette[playerIndex % palette.length];
-    const lastWhole = Math.min(Math.floor(playhead), data.games.length);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2.5;
-    ctx.lineJoin = "round";
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(xFor(0), yFor(0));
-    for (let stage = 1; stage <= lastWhole; stage += 1) {
-      ctx.lineTo(xFor(stage), yFor(player.scores[stage - 1]));
+    if (playerIndex !== highlightedPlayerIndex) {
+      drawGraphLine(playerIndex, xFor, yFor, currentX);
     }
-    if (playhead > lastWhole && lastWhole < data.games.length) {
-      ctx.lineTo(currentX, yFor(scoreAt(player, playhead)));
-    }
-    ctx.stroke();
   });
+
+  if (highlightedPlayerIndex !== null) {
+    drawGraphLine(highlightedPlayerIndex, xFor, yFor, currentX, true);
+  }
 
   const displayY = new Map();
   const minGap = 25;
@@ -263,32 +286,50 @@ function drawGraph() {
     for (const [key, value] of displayY) displayY.set(key, value - overflow);
   }
 
+  graphLabelHitboxes = [];
   standings.forEach((entry, rank) => {
     const color = palette[entry.index % palette.length];
     const actualY = yFor(entry.score);
     const labelY = displayY.get(entry.index);
+    const isHighlighted = entry.index === highlightedPlayerIndex;
     ctx.strokeStyle = `${color}88`;
-    ctx.lineWidth = 1;
+    ctx.lineWidth = isHighlighted ? 2 : 1;
     ctx.beginPath();
     ctx.moveTo(currentX + 14, actualY);
     ctx.lineTo(layout.left + layout.chartWidth + 18, labelY);
     ctx.stroke();
-    drawCar(currentX, actualY, color, entry.index);
+    if (entry.index !== highlightedPlayerIndex) {
+      drawCar(currentX, actualY, color, entry.index);
+    }
 
     ctx.fillStyle = color;
-    ctx.font = "900 12px ui-sans-serif, system-ui";
+    ctx.font = `${isHighlighted ? "1000" : "900"} ${isHighlighted ? 14 : 12}px ui-sans-serif, system-ui`;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.fillText(`${rank + 1}. ${entry.player.name}`, layout.left + layout.chartWidth + 25, labelY - 6);
+    const labelX = layout.left + layout.chartWidth + 25;
+    ctx.fillText(`${rank + 1}. ${entry.player.name}`, labelX, labelY - 6);
     ctx.fillStyle = "rgba(235,241,252,.72)";
     ctx.font = "800 11px ui-sans-serif, system-ui";
-    ctx.fillText(`${Math.round(entry.score * 10) / 10} очков`, layout.left + layout.chartWidth + 25, labelY + 9);
+    ctx.fillText(`${Math.round(entry.score * 10) / 10} очков`, labelX, labelY + 9);
+    graphLabelHitboxes.push({
+      index: entry.index,
+      x: labelX - 6,
+      y: labelY - 18,
+      width: Math.max(120, ctx.measureText(entry.player.name).width + 48),
+      height: 34
+    });
   });
+
+  if (highlightedPlayerIndex !== null) {
+    const entry = standings.find((candidate) => candidate.index === highlightedPlayerIndex);
+    if (entry) drawCar(currentX, yFor(entry.score), palette[entry.index % palette.length], entry.index);
+  }
 
   renderLeaderboard(standings);
 }
 
 function drawLaneRace() {
+  graphLabelHitboxes = [];
   const width = canvas.clientWidth;
   const height = canvas.clientHeight;
   const left = 48;
@@ -388,9 +429,13 @@ function draw() {
   else drawGraph();
 }
 
+function setHighlightedPlayer(index) {
+  highlightedPlayerIndex = index;
+}
+
 function renderLeaderboard(standings) {
   leaderboard.innerHTML = standings.map((entry, rank) => `
-    <div class="leader-card">
+    <div class="leader-card ${entry.index === highlightedPlayerIndex ? "active" : ""}" data-player-index="${entry.index}">
       <span class="rank">${rank + 1}</span>
       <span class="swatch" style="background:${palette[entry.index % palette.length]}"></span>
       <span class="player-name">${escapeHtml(entry.player.name)}</span>
@@ -456,8 +501,35 @@ speedInput.addEventListener("input", () => {
 viewButtons.forEach((button) => {
   button.addEventListener("click", () => {
     viewMode = button.dataset.view;
+    highlightedPlayerIndex = null;
     viewButtons.forEach((candidate) => candidate.classList.toggle("active", candidate === button));
   });
+});
+
+canvas.addEventListener("mousemove", (event) => {
+  if (viewMode !== "graph") return;
+  const rect = canvas.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  const hit = graphLabelHitboxes.find((box) =>
+    x >= box.x && x <= box.x + box.width && y >= box.y && y <= box.y + box.height
+  );
+  setHighlightedPlayer(hit ? hit.index : null);
+  canvas.style.cursor = hit ? "pointer" : "default";
+});
+
+canvas.addEventListener("mouseleave", () => {
+  setHighlightedPlayer(null);
+  canvas.style.cursor = "default";
+});
+
+leaderboard.addEventListener("mousemove", (event) => {
+  const card = event.target.closest("[data-player-index]");
+  setHighlightedPlayer(card ? Number(card.dataset.playerIndex) : null);
+});
+
+leaderboard.addEventListener("mouseleave", () => {
+  setHighlightedPlayer(null);
 });
 
 window.addEventListener("resize", resizeCanvas);

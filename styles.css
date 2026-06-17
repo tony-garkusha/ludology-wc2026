@@ -176,6 +176,13 @@ input[type="range"] {
   background: rgba(255, 255, 255, 0.045);
   border: 1px solid var(--panel-border);
   border-radius: 12px;
+  cursor: pointer;
+}
+
+.leader-card.active {
+  background: rgba(104, 243, 179, 0.12);
+  border-color: rgba(104, 243, 179, 0.45);
+  box-shadow: 0 0 0 1px rgba(104, 243, 179, 0.08);
 }
 
 .rank {
