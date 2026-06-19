@@ -50,6 +50,8 @@ let highlightedPlayerIndex = null;
 let graphLabelHitboxes = [];
 const visibleGraphMatches = 24;
 const scoreAxisWindow = 30;
+const scoreAxisStep = 5;
+const scoreAxisLead = 3;
 let graphWindowStart = 0;
 let graphWindowTargetStart = 0;
 let scoreAxisMin = 0;
@@ -210,16 +212,21 @@ function updateGraphWindowTarget() {
 
 function updateScoreAxisTarget() {
   const currentMaxScore = Math.max(0, ...data.players.map((player) => scoreAt(player, playhead)));
-  scoreAxisTargetMax = Math.max(scoreAxisWindow, Math.ceil(currentMaxScore / 5) * 5);
+  const triggerScore = currentMaxScore + scoreAxisLead + 0.0001;
+  scoreAxisTargetMax = Math.max(scoreAxisWindow, Math.ceil(triggerScore / scoreAxisStep) * scoreAxisStep);
   scoreAxisTargetMin = scoreAxisTargetMax - scoreAxisWindow;
 }
 
+function moveTowards(value, target, amount) {
+  if (Math.abs(target - value) <= amount) return target;
+  return value + Math.sign(target - value) * amount;
+}
+
 function animateScoreAxis(delta) {
-  const smoothing = 1 - Math.exp(-delta * 6);
-  scoreAxisMin += (scoreAxisTargetMin - scoreAxisMin) * smoothing;
-  scoreAxisMax += (scoreAxisTargetMax - scoreAxisMax) * smoothing;
-  if (Math.abs(scoreAxisMin - scoreAxisTargetMin) < 0.01) scoreAxisMin = scoreAxisTargetMin;
-  if (Math.abs(scoreAxisMax - scoreAxisTargetMax) < 0.01) scoreAxisMax = scoreAxisTargetMax;
+  const axisSpeed = scoreAxisStep / secondsPerGame;
+  const maxMove = axisSpeed * delta;
+  scoreAxisMin = moveTowards(scoreAxisMin, scoreAxisTargetMin, maxMove);
+  scoreAxisMax = moveTowards(scoreAxisMax, scoreAxisTargetMax, maxMove);
 }
 
 function animateGraphWindow(delta) {
