@@ -29,6 +29,9 @@ const resetButton = document.querySelector("#reset");
 const timeline = document.querySelector("#timeline");
 const speedInput = document.querySelector("#speed");
 const speedLabel = document.querySelector("#speed-label");
+const graphWindowControls = document.querySelector("#graph-window-controls");
+const graphWindowInput = document.querySelector("#graph-window");
+const graphWindowLabel = document.querySelector("#graph-window-label");
 const status = document.querySelector("#status");
 const leaderboard = document.querySelector("#leaderboard");
 const viewButtons = document.querySelectorAll(".view-button");
@@ -45,6 +48,9 @@ let viewMode = "lanes";
 let rankOrderCache = new Map();
 let highlightedPlayerIndex = null;
 let graphLabelHitboxes = [];
+const visibleGraphMatches = 24;
+let graphWindowStart = 0;
+let userAdjustedGraphWindow = false;
 
 function resetRace(autoplay = false) {
   playhead = 0;
@@ -52,6 +58,9 @@ function resetRace(autoplay = false) {
   playButton.textContent = playing ? "Пауза" : "Старт";
   timeline.max = data.games.length;
   timeline.value = 0;
+  graphWindowStart = 0;
+  userAdjustedGraphWindow = false;
+  syncGraphWindowControls();
   updateStatus();
 }
 
@@ -178,19 +187,44 @@ function lanePositionAt(playerIndex, position) {
   return leftRank + (rightRank - leftRank) * eased;
 }
 
-function traceGraphLine(player, xFor, yFor, currentX) {
-  const lastWhole = Math.min(Math.floor(playhead), data.games.length);
+function clampGraphWindowStart(value) {
+  return Math.max(0, Math.min(Math.round(value), Math.max(0, data.games.length - visibleGraphMatches)));
+}
+
+function ensurePlayheadInGraphWindow() {
+  if (viewMode !== "graph" || userAdjustedGraphWindow || data.games.length <= visibleGraphMatches) return;
+  const rightEdge = graphWindowStart + visibleGraphMatches;
+  if (playhead > rightEdge) {
+    graphWindowStart = clampGraphWindowStart(Math.ceil(playhead - visibleGraphMatches));
+  } else if (playhead < graphWindowStart) {
+    graphWindowStart = clampGraphWindowStart(Math.floor(playhead));
+  }
+  syncGraphWindowControls();
+}
+
+function syncGraphWindowControls() {
+  const maxStart = Math.max(0, data.games.length - visibleGraphMatches);
+  graphWindowInput.max = String(maxStart);
+  graphWindowInput.value = String(clampGraphWindowStart(graphWindowStart));
+  graphWindowControls.classList.toggle("visible", viewMode === "graph" && data.games.length > visibleGraphMatches);
+  const startMatch = graphWindowStart + 1;
+  const endMatch = Math.min(data.games.length, graphWindowStart + visibleGraphMatches);
+  graphWindowLabel.textContent = `Матчи ${startMatch}–${endMatch} из ${data.games.length}`;
+}
+
+function traceGraphLine(player, xFor, yFor, currentX, windowStart, windowEnd) {
+  const lastWhole = Math.min(Math.floor(playhead), windowEnd);
   ctx.beginPath();
-  ctx.moveTo(xFor(0), yFor(0));
-  for (let stage = 1; stage <= lastWhole; stage += 1) {
+  ctx.moveTo(xFor(windowStart), yFor(scoreAt(player, windowStart)));
+  for (let stage = windowStart + 1; stage <= lastWhole; stage += 1) {
     ctx.lineTo(xFor(stage), yFor(player.scores[stage - 1]));
   }
-  if (playhead > lastWhole && lastWhole < data.games.length) {
+  if (playhead > lastWhole && playhead < windowEnd) {
     ctx.lineTo(currentX, yFor(scoreAt(player, playhead)));
   }
 }
 
-function drawGraphLine(playerIndex, xFor, yFor, currentX, emphasis = false) {
+function drawGraphLine(playerIndex, xFor, yFor, currentX, windowStart, windowEnd, emphasis = false) {
   const player = data.players[playerIndex];
   const color = palette[playerIndex % palette.length];
   ctx.save();
@@ -202,7 +236,7 @@ function drawGraphLine(playerIndex, xFor, yFor, currentX, emphasis = false) {
     ctx.shadowColor = color;
     ctx.shadowBlur = 16;
   }
-  traceGraphLine(player, xFor, yFor, currentX);
+  traceGraphLine(player, xFor, yFor, currentX, windowStart, windowEnd);
   ctx.stroke();
   ctx.restore();
 }
@@ -213,8 +247,10 @@ function drawGraph() {
   const layout = getLayout(width, height);
   const scores = data.players.flatMap((player) => player.scores);
   const maxScore = Math.max(10, ...scores) + 4;
-  const gameDenominator = Math.max(1, data.games.length);
-  const xFor = (position) => layout.left + (position / gameDenominator) * layout.chartWidth;
+  const windowStart = data.games.length > visibleGraphMatches ? clampGraphWindowStart(graphWindowStart) : 0;
+  const windowEnd = Math.min(data.games.length, windowStart + visibleGraphMatches);
+  const gameDenominator = Math.max(1, windowEnd - windowStart);
+  const xFor = (position) => layout.left + ((position - windowStart) / gameDenominator) * layout.chartWidth;
   const yFor = (score) => layout.top + layout.chartHeight - (score / maxScore) * layout.chartHeight;
 
   const gradient = ctx.createLinearGradient(0, layout.top, 0, height);
@@ -240,6 +276,7 @@ function drawGraph() {
 
   data.games.forEach((game, index) => {
     const stage = index + 1;
+    if (stage < windowStart + 1 || stage > windowEnd) return;
     const x = xFor(stage);
     ctx.fillStyle = stage <= playhead ? "rgba(104,243,179,.1)" : "rgba(255,255,255,.018)";
     if (index % 2 === 0) {
@@ -256,24 +293,27 @@ function drawGraph() {
     ctx.restore();
   });
 
-  const currentX = xFor(playhead);
-  ctx.strokeStyle = "rgba(104,243,179,.72)";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(currentX, layout.top);
-  ctx.lineTo(currentX, layout.top + layout.chartHeight);
-  ctx.stroke();
+  const playheadInWindow = playhead >= windowStart && playhead <= windowEnd;
+  const currentX = xFor(Math.max(windowStart, Math.min(playhead, windowEnd)));
+  if (playheadInWindow) {
+    ctx.strokeStyle = "rgba(104,243,179,.72)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(currentX, layout.top);
+    ctx.lineTo(currentX, layout.top + layout.chartHeight);
+    ctx.stroke();
+  }
 
   const standings = getStandings();
 
   data.players.forEach((player, playerIndex) => {
     if (playerIndex !== highlightedPlayerIndex) {
-      drawGraphLine(playerIndex, xFor, yFor, currentX);
+      drawGraphLine(playerIndex, xFor, yFor, currentX, windowStart, windowEnd);
     }
   });
 
   if (highlightedPlayerIndex !== null) {
-    drawGraphLine(highlightedPlayerIndex, xFor, yFor, currentX, true);
+    drawGraphLine(highlightedPlayerIndex, xFor, yFor, currentX, windowStart, windowEnd, true);
   }
 
   const displayY = new Map();
@@ -297,11 +337,12 @@ function drawGraph() {
     ctx.strokeStyle = `${color}88`;
     ctx.lineWidth = isHighlighted ? 2 : 1;
     ctx.beginPath();
-    ctx.moveTo(currentX + 14, actualY);
+    const connectorX = playheadInWindow ? currentX : layout.left + layout.chartWidth;
+    ctx.moveTo(connectorX + 14, actualY);
     ctx.lineTo(layout.left + layout.chartWidth + 18, labelY);
     ctx.stroke();
     if (entry.index !== highlightedPlayerIndex) {
-      drawCar(currentX, actualY, color, entry.index);
+      drawCar(connectorX, actualY, color, entry.index);
     }
 
     ctx.fillStyle = color;
@@ -324,7 +365,7 @@ function drawGraph() {
 
   if (highlightedPlayerIndex !== null) {
     const entry = standings.find((candidate) => candidate.index === highlightedPlayerIndex);
-    if (entry) drawCar(currentX, yFor(entry.score), palette[entry.index % palette.length], entry.index);
+    if (entry) drawCar(playheadInWindow ? currentX : layout.left + layout.chartWidth, yFor(entry.score), palette[entry.index % palette.length], entry.index);
   }
 
   renderLeaderboard(standings);
@@ -341,8 +382,8 @@ function drawLaneRace() {
   const trackWidth = width - left - right;
   const trackHeight = height - top - bottom;
   const laneWidth = trackWidth / data.players.length;
-  const scores = data.players.flatMap((player) => player.scores);
-  const maxScore = Math.max(10, ...scores) + 4;
+  const currentMaxScore = Math.max(10, ...data.players.map((player) => scoreAt(player, playhead)));
+  const maxScore = currentMaxScore + Math.max(4, Math.ceil(currentMaxScore * 0.12));
   const yFor = (score) => top + trackHeight - (score / maxScore) * trackHeight;
   const currentStage = Math.min(Math.round(playhead), data.games.length);
 
@@ -474,6 +515,7 @@ function animate(time) {
       playButton.textContent = "Старт";
     }
     timeline.value = playhead;
+    ensurePlayheadInGraphWindow();
     updateStatus();
   }
   draw();
@@ -492,6 +534,7 @@ timeline.addEventListener("input", () => {
   playhead = Number(timeline.value);
   playing = false;
   playButton.textContent = "Старт";
+  ensurePlayheadInGraphWindow();
   updateStatus();
 });
 
@@ -504,6 +547,9 @@ viewButtons.forEach((button) => {
   button.addEventListener("click", () => {
     viewMode = button.dataset.view;
     highlightedPlayerIndex = null;
+    userAdjustedGraphWindow = false;
+    ensurePlayheadInGraphWindow();
+    syncGraphWindowControls();
     viewButtons.forEach((candidate) => candidate.classList.toggle("active", candidate === button));
   });
 });
@@ -532,6 +578,12 @@ leaderboard.addEventListener("mousemove", (event) => {
 
 leaderboard.addEventListener("mouseleave", () => {
   setHighlightedPlayer(null);
+});
+
+graphWindowInput.addEventListener("input", () => {
+  graphWindowStart = clampGraphWindowStart(Number(graphWindowInput.value));
+  userAdjustedGraphWindow = true;
+  syncGraphWindowControls();
 });
 
 window.addEventListener("resize", resizeCanvas);
