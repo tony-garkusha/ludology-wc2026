@@ -364,6 +364,11 @@ function drawGraph() {
 
   const standings = getStandings();
 
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(layout.left, layout.top, layout.chartWidth, layout.chartHeight);
+  ctx.clip();
+
   data.players.forEach((player, playerIndex) => {
     if (playerIndex !== highlightedPlayerIndex) {
       drawGraphLine(playerIndex, xFor, yFor, windowStart, windowEnd);
@@ -373,6 +378,7 @@ function drawGraph() {
   if (highlightedPlayerIndex !== null) {
     drawGraphLine(highlightedPlayerIndex, xFor, yFor, windowStart, windowEnd, true);
   }
+  ctx.restore();
 
   const displayY = new Map();
   const minGap = 25;
@@ -396,10 +402,11 @@ function drawGraph() {
     ctx.lineWidth = isHighlighted ? 2 : 1;
     ctx.beginPath();
     const connectorX = playheadInWindow ? currentX : layout.left + layout.chartWidth;
-    ctx.moveTo(connectorX + 14, actualY);
+    const visibleActualY = Math.max(layout.top, Math.min(layout.top + layout.chartHeight, actualY));
+    ctx.moveTo(connectorX + 14, visibleActualY);
     ctx.lineTo(layout.left + layout.chartWidth + 18, labelY);
     ctx.stroke();
-    if (entry.index !== highlightedPlayerIndex) {
+    if (entry.index !== highlightedPlayerIndex && actualY >= layout.top && actualY <= layout.top + layout.chartHeight) {
       drawCar(connectorX, actualY, color, entry.index);
     }
 
@@ -423,7 +430,12 @@ function drawGraph() {
 
   if (highlightedPlayerIndex !== null) {
     const entry = standings.find((candidate) => candidate.index === highlightedPlayerIndex);
-    if (entry) drawCar(playheadInWindow ? currentX : layout.left + layout.chartWidth, yFor(entry.score), palette[entry.index % palette.length], entry.index);
+    if (entry) {
+      const carY = yFor(entry.score);
+      if (carY >= layout.top && carY <= layout.top + layout.chartHeight) {
+        drawCar(playheadInWindow ? currentX : layout.left + layout.chartWidth, carY, palette[entry.index % palette.length], entry.index);
+      }
+    }
   }
 
   renderLeaderboard(standings);
