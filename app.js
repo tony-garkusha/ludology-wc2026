@@ -49,8 +49,13 @@ let rankOrderCache = new Map();
 let highlightedPlayerIndex = null;
 let graphLabelHitboxes = [];
 const visibleGraphMatches = 24;
+const graphScoreWindow = 50;
 let graphWindowStart = 0;
 let graphWindowTargetStart = 0;
+let graphScoreMin = 0;
+let graphScoreMax = graphScoreWindow;
+let graphScoreTargetMin = 0;
+let graphScoreTargetMax = graphScoreWindow;
 let userAdjustedGraphWindow = false;
 
 function resetRace(autoplay = false) {
@@ -61,6 +66,10 @@ function resetRace(autoplay = false) {
   timeline.value = 0;
   graphWindowStart = 0;
   graphWindowTargetStart = 0;
+  graphScoreMin = 0;
+  graphScoreMax = graphScoreWindow;
+  graphScoreTargetMin = 0;
+  graphScoreTargetMax = graphScoreWindow;
   userAdjustedGraphWindow = false;
   syncGraphWindowControls();
   updateStatus();
@@ -199,6 +208,21 @@ function updateGraphWindowTarget() {
   syncGraphWindowControls();
 }
 
+function updateGraphScoreAxisTarget() {
+  if (viewMode !== "graph") return;
+  const currentMaxScore = Math.max(0, ...data.players.map((player) => scoreAt(player, playhead)));
+  graphScoreTargetMax = Math.max(graphScoreWindow, Math.ceil(currentMaxScore / 5) * 5);
+  graphScoreTargetMin = graphScoreTargetMax - graphScoreWindow;
+}
+
+function animateGraphScoreAxis(delta) {
+  const smoothing = 1 - Math.exp(-delta * 6);
+  graphScoreMin += (graphScoreTargetMin - graphScoreMin) * smoothing;
+  graphScoreMax += (graphScoreTargetMax - graphScoreMax) * smoothing;
+  if (Math.abs(graphScoreMin - graphScoreTargetMin) < 0.01) graphScoreMin = graphScoreTargetMin;
+  if (Math.abs(graphScoreMax - graphScoreTargetMax) < 0.01) graphScoreMax = graphScoreTargetMax;
+}
+
 function animateGraphWindow(delta) {
   if (Math.abs(graphWindowStart - graphWindowTargetStart) < 0.001) {
     graphWindowStart = graphWindowTargetStart;
@@ -275,13 +299,14 @@ function drawGraph() {
   const width = canvas.clientWidth;
   const height = canvas.clientHeight;
   const layout = getLayout(width, height);
-  const scores = data.players.flatMap((player) => player.scores);
-  const maxScore = Math.max(10, ...scores) + 4;
+  const scoreMin = graphScoreMin;
+  const scoreMax = graphScoreMax;
+  const scoreRange = Math.max(1, scoreMax - scoreMin);
   const windowStart = data.games.length > visibleGraphMatches ? clampGraphWindowStart(getGraphWindowStart()) : 0;
   const windowEnd = Math.min(data.games.length, windowStart + visibleGraphMatches);
   const gameDenominator = Math.max(1, windowEnd - windowStart);
   const xFor = (position) => layout.left + ((position - windowStart) / gameDenominator) * layout.chartWidth;
-  const yFor = (score) => layout.top + layout.chartHeight - (score / maxScore) * layout.chartHeight;
+  const yFor = (score) => layout.top + layout.chartHeight - ((score - scoreMin) / scoreRange) * layout.chartHeight;
 
   const gradient = ctx.createLinearGradient(0, layout.top, 0, height);
   gradient.addColorStop(0, "rgba(255,255,255,.045)");
@@ -292,7 +317,9 @@ function drawGraph() {
   ctx.font = "700 11px ui-sans-serif, system-ui";
   ctx.textAlign = "right";
   ctx.textBaseline = "middle";
-  for (let value = 0; value <= maxScore; value += 5) {
+  const firstGridValue = Math.ceil(scoreMin / 5) * 5;
+  const lastGridValue = Math.floor(scoreMax / 5) * 5;
+  for (let value = firstGridValue; value <= lastGridValue; value += 5) {
     const y = yFor(value);
     ctx.strokeStyle = value % 10 === 0 ? "rgba(255,255,255,.13)" : "rgba(255,255,255,.065)";
     ctx.lineWidth = 1;
@@ -547,9 +574,11 @@ function animate(time) {
     }
     timeline.value = playhead;
     updateGraphWindowTarget();
+    updateGraphScoreAxisTarget();
     updateStatus();
   }
   animateGraphWindow(delta);
+  animateGraphScoreAxis(delta);
   draw();
   requestAnimationFrame(animate);
 }
@@ -559,6 +588,10 @@ playButton.addEventListener("click", () => {
     playhead = 0;
     graphWindowStart = 0;
     graphWindowTargetStart = 0;
+    graphScoreMin = 0;
+    graphScoreMax = graphScoreWindow;
+    graphScoreTargetMin = 0;
+    graphScoreTargetMax = graphScoreWindow;
     userAdjustedGraphWindow = false;
     syncGraphWindowControls();
   }
@@ -573,6 +606,7 @@ timeline.addEventListener("input", () => {
   playing = false;
   playButton.textContent = "Старт";
   if (!userAdjustedGraphWindow) updateGraphWindowTarget();
+  updateGraphScoreAxisTarget();
   updateStatus();
 });
 
@@ -587,6 +621,7 @@ viewButtons.forEach((button) => {
     highlightedPlayerIndex = null;
     userAdjustedGraphWindow = false;
     updateGraphWindowTarget();
+    updateGraphScoreAxisTarget();
     syncGraphWindowControls();
     viewButtons.forEach((candidate) => candidate.classList.toggle("active", candidate === button));
   });
