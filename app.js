@@ -49,13 +49,13 @@ let rankOrderCache = new Map();
 let highlightedPlayerIndex = null;
 let graphLabelHitboxes = [];
 const visibleGraphMatches = 24;
-const graphScoreWindow = 30;
+const scoreAxisWindow = 30;
 let graphWindowStart = 0;
 let graphWindowTargetStart = 0;
-let graphScoreMin = 0;
-let graphScoreMax = graphScoreWindow;
-let graphScoreTargetMin = 0;
-let graphScoreTargetMax = graphScoreWindow;
+let scoreAxisMin = 0;
+let scoreAxisMax = scoreAxisWindow;
+let scoreAxisTargetMin = 0;
+let scoreAxisTargetMax = scoreAxisWindow;
 let userAdjustedGraphWindow = false;
 
 function resetRace(autoplay = false) {
@@ -66,10 +66,10 @@ function resetRace(autoplay = false) {
   timeline.value = 0;
   graphWindowStart = 0;
   graphWindowTargetStart = 0;
-  graphScoreMin = 0;
-  graphScoreMax = graphScoreWindow;
-  graphScoreTargetMin = 0;
-  graphScoreTargetMax = graphScoreWindow;
+  scoreAxisMin = 0;
+  scoreAxisMax = scoreAxisWindow;
+  scoreAxisTargetMin = 0;
+  scoreAxisTargetMax = scoreAxisWindow;
   userAdjustedGraphWindow = false;
   syncGraphWindowControls();
   updateStatus();
@@ -208,19 +208,18 @@ function updateGraphWindowTarget() {
   syncGraphWindowControls();
 }
 
-function updateGraphScoreAxisTarget() {
-  if (viewMode !== "graph") return;
+function updateScoreAxisTarget() {
   const currentMaxScore = Math.max(0, ...data.players.map((player) => scoreAt(player, playhead)));
-  graphScoreTargetMax = Math.max(graphScoreWindow, Math.ceil(currentMaxScore / 5) * 5);
-  graphScoreTargetMin = graphScoreTargetMax - graphScoreWindow;
+  scoreAxisTargetMax = Math.max(scoreAxisWindow, Math.ceil(currentMaxScore / 5) * 5);
+  scoreAxisTargetMin = scoreAxisTargetMax - scoreAxisWindow;
 }
 
-function animateGraphScoreAxis(delta) {
+function animateScoreAxis(delta) {
   const smoothing = 1 - Math.exp(-delta * 6);
-  graphScoreMin += (graphScoreTargetMin - graphScoreMin) * smoothing;
-  graphScoreMax += (graphScoreTargetMax - graphScoreMax) * smoothing;
-  if (Math.abs(graphScoreMin - graphScoreTargetMin) < 0.01) graphScoreMin = graphScoreTargetMin;
-  if (Math.abs(graphScoreMax - graphScoreTargetMax) < 0.01) graphScoreMax = graphScoreTargetMax;
+  scoreAxisMin += (scoreAxisTargetMin - scoreAxisMin) * smoothing;
+  scoreAxisMax += (scoreAxisTargetMax - scoreAxisMax) * smoothing;
+  if (Math.abs(scoreAxisMin - scoreAxisTargetMin) < 0.01) scoreAxisMin = scoreAxisTargetMin;
+  if (Math.abs(scoreAxisMax - scoreAxisTargetMax) < 0.01) scoreAxisMax = scoreAxisTargetMax;
 }
 
 function animateGraphWindow(delta) {
@@ -299,8 +298,8 @@ function drawGraph() {
   const width = canvas.clientWidth;
   const height = canvas.clientHeight;
   const layout = getLayout(width, height);
-  const scoreMin = graphScoreMin;
-  const scoreMax = graphScoreMax;
+  const scoreMin = scoreAxisMin;
+  const scoreMax = scoreAxisMax;
   const scoreRange = Math.max(1, scoreMax - scoreMin);
   const windowStart = data.games.length > visibleGraphMatches ? clampGraphWindowStart(getGraphWindowStart()) : 0;
   const windowEnd = Math.min(data.games.length, windowStart + visibleGraphMatches);
@@ -452,9 +451,10 @@ function drawLaneRace() {
   const trackWidth = width - left - right;
   const trackHeight = height - top - bottom;
   const laneWidth = trackWidth / data.players.length;
-  const currentMaxScore = Math.max(10, ...data.players.map((player) => scoreAt(player, playhead)));
-  const maxScore = currentMaxScore + Math.max(4, Math.ceil(currentMaxScore * 0.12));
-  const yFor = (score) => top + trackHeight - (score / maxScore) * trackHeight;
+  const scoreMin = scoreAxisMin;
+  const scoreMax = scoreAxisMax;
+  const scoreRange = Math.max(1, scoreMax - scoreMin);
+  const yFor = (score) => top + trackHeight - ((score - scoreMin) / scoreRange) * trackHeight;
   const currentStage = Math.min(Math.round(playhead), data.games.length);
 
   const gradient = ctx.createLinearGradient(0, top, 0, top + trackHeight);
@@ -471,7 +471,9 @@ function drawLaneRace() {
   ctx.font = "700 11px ui-sans-serif, system-ui";
   ctx.textAlign = "right";
   ctx.textBaseline = "middle";
-  for (let value = 0; value <= maxScore; value += 5) {
+  const firstGridValue = Math.ceil(scoreMin / 5) * 5;
+  const lastGridValue = Math.floor(scoreMax / 5) * 5;
+  for (let value = firstGridValue; value <= lastGridValue; value += 5) {
     const y = yFor(value);
     ctx.strokeStyle = value % 10 === 0 ? "rgba(255,255,255,.15)" : "rgba(255,255,255,.07)";
     ctx.lineWidth = 1;
@@ -482,6 +484,11 @@ function drawLaneRace() {
     ctx.fillStyle = "rgba(214,222,239,.6)";
     ctx.fillText(String(value), left - 9, y);
   }
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(left, top, trackWidth, trackHeight);
+  ctx.clip();
 
   data.players.forEach((player, index) => {
     const color = palette[index % palette.length];
@@ -503,8 +510,17 @@ function drawLaneRace() {
 
     const score = scoreAt(player, playhead);
     const carY = yFor(score);
-    drawVerticalCar(laneCenter, carY, color, index);
+    if (carY >= top && carY <= top + trackHeight) {
+      drawVerticalCar(laneCenter, carY, color, index);
+    }
+  });
 
+  ctx.restore();
+
+  data.players.forEach((player, index) => {
+    const color = palette[index % palette.length];
+    const laneCenter = left + laneWidth * (lanePositionAt(index, playhead) + 0.5);
+    const score = scoreAt(player, playhead);
     ctx.fillStyle = color;
     ctx.font = `900 ${Math.max(9, Math.min(12, laneWidth * 0.14))}px ui-sans-serif, system-ui`;
     ctx.textAlign = "center";
@@ -586,11 +602,11 @@ function animate(time) {
     }
     timeline.value = playhead;
     updateGraphWindowTarget();
-    updateGraphScoreAxisTarget();
+    updateScoreAxisTarget();
     updateStatus();
   }
   animateGraphWindow(delta);
-  animateGraphScoreAxis(delta);
+  animateScoreAxis(delta);
   draw();
   requestAnimationFrame(animate);
 }
@@ -600,10 +616,10 @@ playButton.addEventListener("click", () => {
     playhead = 0;
     graphWindowStart = 0;
     graphWindowTargetStart = 0;
-    graphScoreMin = 0;
-    graphScoreMax = graphScoreWindow;
-    graphScoreTargetMin = 0;
-    graphScoreTargetMax = graphScoreWindow;
+    scoreAxisMin = 0;
+    scoreAxisMax = scoreAxisWindow;
+    scoreAxisTargetMin = 0;
+    scoreAxisTargetMax = scoreAxisWindow;
     userAdjustedGraphWindow = false;
     syncGraphWindowControls();
   }
@@ -618,7 +634,7 @@ timeline.addEventListener("input", () => {
   playing = false;
   playButton.textContent = "Старт";
   if (!userAdjustedGraphWindow) updateGraphWindowTarget();
-  updateGraphScoreAxisTarget();
+  updateScoreAxisTarget();
   updateStatus();
 });
 
@@ -633,7 +649,7 @@ viewButtons.forEach((button) => {
     highlightedPlayerIndex = null;
     userAdjustedGraphWindow = false;
     updateGraphWindowTarget();
-    updateGraphScoreAxisTarget();
+    updateScoreAxisTarget();
     syncGraphWindowControls();
     viewButtons.forEach((candidate) => candidate.classList.toggle("active", candidate === button));
   });
