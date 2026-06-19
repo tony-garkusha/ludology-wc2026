@@ -240,20 +240,21 @@ function syncGraphWindowControls() {
   graphWindowLabel.textContent = `Матчи ${startMatch}–${endMatch} из ${data.games.length}`;
 }
 
-function traceGraphLine(player, xFor, yFor, currentX, windowStart, windowEnd) {
-  const lastWhole = Math.min(Math.floor(playhead), windowEnd);
+function traceGraphLine(player, xFor, yFor, windowStart, windowEnd) {
+  const visiblePosition = Math.max(windowStart, Math.min(playhead, windowEnd));
+  const lastWhole = Math.min(Math.floor(visiblePosition), windowEnd);
   ctx.beginPath();
   ctx.moveTo(xFor(windowStart), yFor(scoreAt(player, windowStart)));
   for (let stage = Math.floor(windowStart) + 1; stage <= lastWhole; stage += 1) {
     if (stage <= windowStart) continue;
     ctx.lineTo(xFor(stage), yFor(player.scores[stage - 1]));
   }
-  if (playhead > lastWhole && playhead < windowEnd) {
-    ctx.lineTo(currentX, yFor(scoreAt(player, playhead)));
+  if (visiblePosition > lastWhole) {
+    ctx.lineTo(xFor(visiblePosition), yFor(scoreAt(player, visiblePosition)));
   }
 }
 
-function drawGraphLine(playerIndex, xFor, yFor, currentX, windowStart, windowEnd, emphasis = false) {
+function drawGraphLine(playerIndex, xFor, yFor, windowStart, windowEnd, emphasis = false) {
   const player = data.players[playerIndex];
   const color = palette[playerIndex % palette.length];
   ctx.save();
@@ -265,7 +266,7 @@ function drawGraphLine(playerIndex, xFor, yFor, currentX, windowStart, windowEnd
     ctx.shadowColor = color;
     ctx.shadowBlur = 16;
   }
-  traceGraphLine(player, xFor, yFor, currentX, windowStart, windowEnd);
+  traceGraphLine(player, xFor, yFor, windowStart, windowEnd);
   ctx.stroke();
   ctx.restore();
 }
@@ -338,12 +339,12 @@ function drawGraph() {
 
   data.players.forEach((player, playerIndex) => {
     if (playerIndex !== highlightedPlayerIndex) {
-      drawGraphLine(playerIndex, xFor, yFor, currentX, windowStart, windowEnd);
+      drawGraphLine(playerIndex, xFor, yFor, windowStart, windowEnd);
     }
   });
 
   if (highlightedPlayerIndex !== null) {
-    drawGraphLine(highlightedPlayerIndex, xFor, yFor, currentX, windowStart, windowEnd, true);
+    drawGraphLine(highlightedPlayerIndex, xFor, yFor, windowStart, windowEnd, true);
   }
 
   const displayY = new Map();
