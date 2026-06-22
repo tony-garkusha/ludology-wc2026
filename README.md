@@ -11,4 +11,10 @@
 
 Аббревиатуры стран из строки матчей отображаются как emoji-флаги. Неизвестные аббревиатуры автоматически остаются текстом.
 
-Чтобы обновить гонку по ходу турнира, обновите встроенные данные в `tournament-data.js` и опубликуйте новую версию сайта.
+Чтобы обновить гонку по ходу турнира, обновите Excel и перегенерируйте встроенные данные:
+
+```bash
+/Users/agarkusha/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 generate_tournament_data.py
+```
+
+Скрипт читает файл `/Users/agarkusha/Library/CloudStorage/OneDrive-Personal/Ludology WC2026.xlsx` и обновляет `tournament-data.js`. После этого закоммитьте и запушьте изменения.
