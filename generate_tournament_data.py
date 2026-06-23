@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
@@ -14,6 +16,7 @@ DEFAULT_EXCEL_PATH = Path(
     "/Users/agarkusha/Library/CloudStorage/OneDrive-Personal/Ludology WC2026.xlsx"
 )
 DEFAULT_OUTPUT_PATH = Path("tournament-data.js")
+DEFAULT_INDEX_PATH = Path("index.html")
 PLAYER_ORDER = [
     "Artur",
     "Artem PM",
@@ -83,6 +86,31 @@ def format_js(data: dict) -> str:
     return "\n".join(lines)
 
 
+def next_asset_version(existing_version: str | None) -> str:
+    today = date.today().strftime("%Y%m%d")
+    if existing_version:
+        match = re.fullmatch(r"(\d{8})-(\d+)", existing_version)
+        if match and match.group(1) == today:
+            return f"{today}-{int(match.group(2)) + 1}"
+    return f"{today}-1"
+
+
+def bump_index_asset_version(index_path: Path) -> str | None:
+    if not index_path.exists():
+        return None
+
+    html = index_path.read_text(encoding="utf-8")
+    versions = re.findall(r"[?&]v=(\d{8}-\d+)", html)
+    version = next_asset_version(versions[0] if versions else None)
+    updated = re.sub(r"([?&]v=)\d{8}-\d+", rf"\g<1>{version}", html)
+
+    if updated == html:
+        raise ValueError(f"No asset version query strings found in {index_path}.")
+
+    index_path.write_text(updated, encoding="utf-8")
+    return version
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -103,13 +131,27 @@ def main() -> None:
         default=DEFAULT_OUTPUT_PATH,
         help="Output JS file. Default: tournament-data.js",
     )
+    parser.add_argument(
+        "--index",
+        type=Path,
+        default=DEFAULT_INDEX_PATH,
+        help="HTML file whose asset versions should be bumped. Default: index.html",
+    )
+    parser.add_argument(
+        "--no-bump-version",
+        action="store_true",
+        help="Only regenerate tournament-data.js; do not update index.html asset versions.",
+    )
     args = parser.parse_args()
 
     data = build_data(args.excel_path, args.sheet)
     args.output.write_text(format_js(data), encoding="utf-8")
+    asset_version = None if args.no_bump_version else bump_index_asset_version(args.index)
 
     totals = ", ".join(f"{player['name']}={player['scores'][-1]}" for player in data["players"])
     print(f"Wrote {args.output} with {len(data['games'])} games.")
+    if asset_version:
+        print(f"Updated {args.index} asset version to {asset_version}.")
     print(f"Totals: {totals}")
 
 

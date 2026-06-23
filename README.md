@@ -17,4 +17,4 @@
 /Users/agarkusha/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 generate_tournament_data.py
 ```
 
-Скрипт читает файл `/Users/agarkusha/Library/CloudStorage/OneDrive-Personal/Ludology WC2026.xlsx` и обновляет `tournament-data.js`. После этого закоммитьте и запушьте изменения.
+Скрипт читает файл `/Users/agarkusha/Library/CloudStorage/OneDrive-Personal/Ludology WC2026.xlsx`, обновляет `tournament-data.js` и автоматически меняет asset version в `index.html`, чтобы браузеры не держали старые данные в кеше. После этого закоммитьте и запушьте изменения.
